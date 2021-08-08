@@ -7,6 +7,7 @@ import android.view.MenuItem
 import android.view.View
 import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.setFragmentResultListener
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
@@ -17,7 +18,7 @@ import com.codinginflow.mvvmtodo.R
 import com.codinginflow.mvvmtodo.data.SortOrder
 import com.codinginflow.mvvmtodo.data.Task
 import com.codinginflow.mvvmtodo.databinding.FragmentTasksBinding
-import com.codinginflow.mvvmtodo.util.exaustive
+import com.codinginflow.mvvmtodo.util.exhaustive
 import com.codinginflow.mvvmtodo.util.onQueryTextChanged
 import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
@@ -35,17 +36,17 @@ class TasksFragment : Fragment(R.layout.fragment_tasks), TasksAdapter.OnItemClic
 
         val binding = FragmentTasksBinding.bind(view)
 
-        val tasksAdapter = TasksAdapter(this)
+        val taskAdapter = TasksAdapter(this)
+
         binding.apply {
             recyclerViewTasks.apply {
-                adapter = tasksAdapter
+                adapter = taskAdapter
                 layoutManager = LinearLayoutManager(requireContext())
                 setHasFixedSize(true)
             }
-            ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
-                0,
-                ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
-            ) {
+
+            ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(0,
+                ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
                 override fun onMove(
                     recyclerView: RecyclerView,
                     viewHolder: RecyclerView.ViewHolder,
@@ -55,7 +56,7 @@ class TasksFragment : Fragment(R.layout.fragment_tasks), TasksAdapter.OnItemClic
                 }
 
                 override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-                    val task = tasksAdapter.currentList[viewHolder.adapterPosition]
+                    val task = taskAdapter.currentList[viewHolder.adapterPosition]
                     viewModel.onTaskSwiped(task)
                 }
             }).attachToRecyclerView(recyclerViewTasks)
@@ -64,9 +65,16 @@ class TasksFragment : Fragment(R.layout.fragment_tasks), TasksAdapter.OnItemClic
                 viewModel.onAddNewTaskClick()
             }
         }
-        viewModel.tasks.observe(viewLifecycleOwner) {
-            tasksAdapter.submitList(it)
+
+        setFragmentResultListener("add_edit_request") { _, bundle ->
+            val result = bundle.getInt("add_edit_result")
+            viewModel.onAddEditResult(result)
         }
+
+        viewModel.tasks.observe(viewLifecycleOwner) {
+            taskAdapter.submitList(it)
+        }
+
         viewLifecycleOwner.lifecycleScope.launchWhenStarted {
             viewModel.tasksEvent.collect { event ->
                 when (event) {
@@ -77,15 +85,17 @@ class TasksFragment : Fragment(R.layout.fragment_tasks), TasksAdapter.OnItemClic
                             }.show()
                     }
                     is TasksViewModel.TasksEvent.NavigateToAddTaskScreen -> {
-                        val action =
-                            TasksFragmentDirections.actionTasksFragmentToAddEditTaskFragment(null,"New task" )
+                        val action = TasksFragmentDirections.actionTasksFragmentToAddEditTaskFragment(null, "New Task")
                         findNavController().navigate(action)
                     }
                     is TasksViewModel.TasksEvent.NavigateToEditTaskScreen -> {
-                        val action = TasksFragmentDirections.actionTasksFragmentToAddEditTaskFragment(event.task,"Edit task")
+                        val action = TasksFragmentDirections.actionTasksFragmentToAddEditTaskFragment(event.task, "Edit Task")
                         findNavController().navigate(action)
                     }
-                }.exaustive
+                    is TasksViewModel.TasksEvent.ShowTaskSavedConfirmationMessage -> {
+                        Snackbar.make(requireView(), event.msg, Snackbar.LENGTH_SHORT).show()
+                    }
+                }.exhaustive
             }
         }
 
@@ -94,7 +104,6 @@ class TasksFragment : Fragment(R.layout.fragment_tasks), TasksAdapter.OnItemClic
 
     override fun onItemClick(task: Task) {
         viewModel.onTaskSelected(task)
-
     }
 
     override fun onCheckBoxClick(task: Task, isChecked: Boolean) {
@@ -116,24 +125,20 @@ class TasksFragment : Fragment(R.layout.fragment_tasks), TasksAdapter.OnItemClic
                 viewModel.preferencesFlow.first().hideCompleted
             //first value and then cancel it vs collect which updates all the time
         }
-
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
+        return when(item.itemId) {
             R.id.action_sort_by_name -> {
-                //viewModel.sortOrder.value = SortOrder.BY_NAME
                 viewModel.onSortOrderSelected(SortOrder.BY_NAME)
                 true
             }
             R.id.action_sort_by_date_created -> {
-                //viewModel.sortOrder.value = SortOrder.BY_DATE
                 viewModel.onSortOrderSelected(SortOrder.BY_DATE)
                 true
             }
             R.id.action_hide_completed_tasks -> {
                 item.isChecked = !item.isChecked
-                //viewModel.hideCompleted.value=item.isChecked
                 viewModel.onHideCompletedClick(item.isChecked)
                 true
             }

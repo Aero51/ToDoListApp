@@ -7,6 +7,8 @@ import com.codinginflow.mvvmtodo.data.PreferencesManager
 import com.codinginflow.mvvmtodo.data.SortOrder
 import com.codinginflow.mvvmtodo.data.Task
 import com.codinginflow.mvvmtodo.data.TaskDao
+import com.codinginflow.mvvmtodo.ui.ADD_TASK_RESULT_OK
+import com.codinginflow.mvvmtodo.ui.EDIT_TASK_RESULT_OK
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
@@ -20,8 +22,8 @@ class TasksViewModel @ViewModelInject constructor(
     @Assisted private val state: SavedStateHandle
 ) : ViewModel() {
 
-   // val searchQuery = MutableStateFlow("")
-   val searchQuery = state.getLiveData("searchQuery","")
+    // val searchQuery = MutableStateFlow("")
+    val searchQuery = state.getLiveData("searchQuery", "")
 
     //val sortOrder = MutableStateFlow(SortOrder.BY_DATE)
     //val hideCompleted = MutableStateFlow(false)
@@ -57,7 +59,7 @@ class TasksViewModel @ViewModelInject constructor(
         preferencesManager.updateHideCompleted(hideCompleted)
     }
 
-    fun onTaskSelected(task: Task) =viewModelScope.launch {
+    fun onTaskSelected(task: Task) = viewModelScope.launch {
         tasksEventChannel.send(TasksEvent.NavigateToEditTaskScreen(task))
 
     }
@@ -75,17 +77,27 @@ class TasksViewModel @ViewModelInject constructor(
         taskDao.insert(task)
     }
 
-    fun onAddNewTaskClick()= viewModelScope.launch {
-         tasksEventChannel.send(TasksEvent.NavigateToAddTaskScreen)
+    fun onAddNewTaskClick() = viewModelScope.launch {
+        tasksEventChannel.send(TasksEvent.NavigateToAddTaskScreen)
     }
 
+    fun onAddEditResult(result: Int) {
+        when (result) {
+            ADD_TASK_RESULT_OK -> showTaskSavedConfirmationMessage("Task added")
+            EDIT_TASK_RESULT_OK -> showTaskSavedConfirmationMessage("Task updated")
+        }
+    }
+
+    private fun showTaskSavedConfirmationMessage(text: String) = viewModelScope.launch {
+tasksEventChannel.send(TasksEvent.ShowTaskSavedConfirmationMessage(text))
+    }
 
     //this can be done with SingleLiveEvent
     sealed class TasksEvent {
-        object NavigateToAddTaskScreen: TasksEvent()
-        data class NavigateToEditTaskScreen(val task: Task):TasksEvent()
+        object NavigateToAddTaskScreen : TasksEvent()
+        data class NavigateToEditTaskScreen(val task: Task) : TasksEvent()
         data class ShowUndoDeleteTaskMessage(val task: Task) : TasksEvent()
-
+        data class ShowTaskSavedConfirmationMessage(val msg: String) : TasksEvent()
     }
 }
 

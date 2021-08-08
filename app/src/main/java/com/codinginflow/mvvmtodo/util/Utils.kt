@@ -1,4 +1,4 @@
 package com.codinginflow.mvvmtodo.util
 
-val <T> T.exaustive: T
+val <T> T.exhaustive: T
     get() = this
