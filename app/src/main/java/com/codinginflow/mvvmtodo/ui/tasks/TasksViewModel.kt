@@ -89,7 +89,11 @@ class TasksViewModel @ViewModelInject constructor(
     }
 
     private fun showTaskSavedConfirmationMessage(text: String) = viewModelScope.launch {
-tasksEventChannel.send(TasksEvent.ShowTaskSavedConfirmationMessage(text))
+        tasksEventChannel.send(TasksEvent.ShowTaskSavedConfirmationMessage(text))
+    }
+
+    fun onDeleteAllCompletedClick() = viewModelScope.launch {
+tasksEventChannel.send(TasksEvent.NavigateToDeleteAllCompletedScreen)
     }
 
     //this can be done with SingleLiveEvent
@@ -98,6 +102,7 @@ tasksEventChannel.send(TasksEvent.ShowTaskSavedConfirmationMessage(text))
         data class NavigateToEditTaskScreen(val task: Task) : TasksEvent()
         data class ShowUndoDeleteTaskMessage(val task: Task) : TasksEvent()
         data class ShowTaskSavedConfirmationMessage(val msg: String) : TasksEvent()
+    object NavigateToDeleteAllCompletedScreen: TasksEvent()
     }
 }
 
